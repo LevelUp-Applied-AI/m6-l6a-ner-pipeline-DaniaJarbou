@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 import spacy
 from transformers import pipeline as hf_pipeline
+import unicodedata
 
 
 def load_data(filepath="data/climate_articles.csv"):
@@ -22,8 +23,9 @@ def load_data(filepath="data/climate_articles.csv"):
     Returns:
         DataFrame with columns: id, text, source, language, category.
     """
-    # TODO: Load the CSV and return the DataFrame
-    pass
+    #  Load the CSV and return the DataFrame
+    df = pd.read_csv(filepath)
+    return df 
 
 
 def explore_data(df):
@@ -39,9 +41,27 @@ def explore_data(df):
           'category_counts': dict mapping category -> row count
           'text_length_stats': dict with 'mean', 'min', 'max' word counts
     """
-    # TODO: Compute shape, language/category value_counts, and word-count
+    # Compute shape, language/category value_counts, and word-count
     #       statistics on df['text']
-    pass
+    
+    shape = df.shape
+    #Count occurrences for language and category
+    lang_counts = df['language'].value_counts().to_dict()
+    category_counts = df['category'].value_counts().to_dict()
+    #Calculate word count statistics for text column
+    word_counts = df['text'].str.split().str.len()
+    text_length_stats = {
+        'mean': word_counts.mean(),
+        'min': word_counts.min(),
+        'max': word_counts.max()
+    }
+    results = {
+        "shape": shape,
+        "lang_counts": lang_counts,
+        "category_counts": category_counts,
+        "text_length_stats": text_length_stats
+    }
+    return results
 
 
 def preprocess_text(text, nlp):
@@ -57,11 +77,18 @@ def preprocess_text(text, nlp):
     Returns:
         List of cleaned, lemmatized token strings.
     """
-    # TODO: NFC-normalize the text, run it through nlp(), drop
+    #  NFC-normalize the text, run it through nlp(), drop
     #       punctuation/whitespace tokens, return lowercased lemmas
-    pass
-
-
+    normalized_text=unicodedata.normalize('NFC', text)
+    doc = nlp(normalized_text)
+    tokens = [
+        token.lemma_.lower() 
+        for token in doc 
+        if not token.is_punct and not token.is_space
+    ]
+    
+    return tokens
+        
 def extract_spacy_entities(df, nlp):
     """Extract named entities from English texts using spaCy NER.
 
@@ -73,9 +100,21 @@ def extract_spacy_entities(df, nlp):
         DataFrame with columns: text_id, entity_text, entity_label,
         start_char, end_char.
     """
-    # TODO: Filter df to English rows, process each text with nlp,
+    #  Filter df to English rows, process each text with nlp,
     #       collect entities into rows, return as a DataFrame
-    pass
+    english_df = df[df['language']=='en']
+    entities = []
+    for index , row in english_df.iterrows():
+        doc = nlp(row['text'])
+        for ent in doc.ents:
+            entities.append({
+              'text_id': row['id'],  
+               'entity_text': ent.text,
+               'entity_label': ent.label_, 
+               'start_char': ent.start_char,
+               'end_char': ent.end_char  
+            })
+    return pd.DataFrame(entities)
 
 
 def extract_hf_entities(df, ner_pipeline):
