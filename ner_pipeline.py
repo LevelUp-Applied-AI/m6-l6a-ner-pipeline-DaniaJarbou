@@ -12,6 +12,8 @@ import numpy as np
 import spacy
 from transformers import pipeline as hf_pipeline
 import unicodedata
+import subprocess
+import sys
 
 
 def load_data(filepath="data/climate_articles.csv"):
@@ -362,8 +364,17 @@ if __name__ == "__main__":
                 print(f"HF evaluation: {hf_metrics}")
                 
                 
-multilingual_nlp = spacy.load("xx_ent_wiki_sm")
+    multilingual_nlp = None
 
-ar_entities = extract_multilingual_entities(df, multilingual_nlp)
+    try:
+        multilingual_nlp = spacy.load("xx_ent_wiki_sm")
+    except OSError:
+        print("Downloading xx_ent_wiki_sm model...")
+        subprocess.run([sys.executable, "-m", "spacy", "download", "xx_ent_wiki_sm"])
+        multilingual_nlp = spacy.load("xx_ent_wiki_sm")
 
-print(f"Arabic entities: {len(ar_entities)}")  
+    if multilingual_nlp is not None:
+        ar_entities = extract_multilingual_entities(df, multilingual_nlp)
+        print(f"Arabic entities: {len(ar_entities)}")
+    else:
+        print("Arabic entities: model not available")
